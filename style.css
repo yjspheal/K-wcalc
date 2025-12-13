@@ -398,6 +398,16 @@ textarea:focus {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 10px;
+
+/* Ad container styling for AdSense placeholder */
+.ad-container {
+    margin: 18px 0 6px;
+    text-align: center;
+}
+.ad-container .adsbygoogle {
+    margin: 0 auto;
+    display: block;
+}
 }
 
 .weekday-stats {
