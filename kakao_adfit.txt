@@ -1,0 +1,167 @@
+광고 스크립트와 SDK 가이드
+스크립트 복사
+정상적인 광고 송출을 위해서는 매체에 애드핏 광고 스크립트와 SDK 설치가 필요합니다.
+Web 배너 SDK 가이드
+스크립트는 개별 광고단위 정보 페이지에서도 확인 가능합니다.
+스크립트 설치 후 실제 광고 호출까지 최대 30분 소요될 수 있습니다.
+<ins class="kakao_ad_area" style="display:none;"
+data-ad-unit = "DAN-qasjhSIiRUda7Wkm"
+data-ad-width = "300"
+data-ad-height = "250"></ins>
+<script type="text/javascript" src="//t1.daumcdn.net/kas/static/ba.min.js" async></script>
+
+-----------
+
+Skip to content
+Navigation Menu
+adfit
+adfit-web-sdk
+
+Type / to search
+Code
+Pull requests
+Security
+Insights
+Owner avatar
+adfit-web-sdk
+Public
+adfit/adfit-web-sdk
+Go to file
+t
+Name		
+kyungw00k
+kyungw00k
+Update README.md
+3b5d2f4
+ · 
+2 years ago
+sample/ANDROID-HYBRID-APP/SampleHybridAppProject
+사용하지 않는 코드 제거
+3 years ago
+GUIDE-HYBRID-ANDROID.md
+Kakao Corp 사명 변경으로 인한 수정
+10 years ago
+README.md
+Update README.md
+2 years ago
+Repository files navigation
+README
+AdFit Web SDK Guide
+이 가이드는 웹에 광고를 노출하기 위한 광고 스크립트 설치 방법을 설명합니다.
+사이트/앱 운영정책에 위반되는 경우 적립금 지급이 거절 될 수 있으니 유의하시기 바랍니다.
+
+문의 고객센터 https://cs.kakao.com/helps?service=160&locale=ko
+사이트/앱 운영 정책 https://adfit.kakao.com/web/html/use_kakao.html
+1. 환경 설정
+1.1. 기본적인 광고 스크립트 설정
+광고를 노출할 페이지에 다음과 같은 광고 설정 스크립트를 삽입합니다.
+
+광고 스크립트 안에 담긴 광고단위 정보는 변경해서 설치해서는 안됩니다.
+
+코드를 수정해서 설치할 경우 광고 요청에 실패하거나 잘못된 광고 요청으로 처리될 수 있습니다.
+
+<ins class="kakao_ad_area" style="display:none;width:100%;"
+ data-ad-unit    = "광고단위ID"
+ data-ad-width   = "광고단위 가로 사이즈"
+ data-ad-height  = "광고단위 세로 사이즈"></ins>
+<script async type="text/javascript" charset="utf-8" src="https://t1.daumcdn.net/kas/static/ba.min.js"></script>
+1.2. NO-AD 콜백 설정하기
+광고 요청이 실패하거나 노출할 광고가 없는 경우에 이를 제어하도록 NO-AD 콜백 함수를 설정할 수 있습니다.
+
+AdFit에서 발급받은 코드에 아래와 같이 Callback 함수 요소를 추가하여 설정할 수 있습니다.
+
+<ins ...
+ data-ad-onfail   = "callBackFunc" // NO-AD시 실행될 Callback 함수명
+ ... ></ins>
+
+<script type="text/javascript">
+ function callBackFunc(arg1) {
+   /*
+    * TODO: 기능 구현
+    */
+ }
+</script>
+Callback 함수 실행시 ins 태그 객체를 첫 번째 인자(arg1)로 전달 받습니다. 또한 한 페이지 내 2개 이상의 광고단위 설치 시 Callback 메서드 명을 달리 해야 합니다.
+
+2. 스크립트 설치
+스크립트 설치는 페이지 내에 다른 리소스에 영향을 주지 않도록 페이지 맨 하단에 </body> 부분 바로 위에 설치하는 것이 좋습니다.
+
+이때, 설치하고자 하는 페이지에 따라 설정 방법이 달라질 수 있습니다.
+
+2.1. 구현 예제 - 외부 광고 스크립트를 삽입하는 경우
+외부 광고 스크립트를 삽입하는 경우 동일한 사이즈의 외부 광고를 사용하여야 합니다.
+
+(예시. Google AdSense 코드. 외부 광고 코드 유형은 반드시 “비동기” 방식을 사용하여야 합니다.)
+
+<html>
+<head>
+<script async src="http://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+   
+<script type="text/javascript">
+function callBackFunc(elm) {  
+    text = [];  
+    text.push('<ins class="adsbygoogle"');  
+    text.push('style="display:inline-block;width:250px;height:250px"');  
+    text.push('data-ad-client="ca-pub-7893835816116192"');  
+    text.push('data-ad-slot="5918517081"></ins>');  
+   
+    elm.innerHTML = text.join(' ');  
+    (adsbygoogle = window.adsbygoogle || []).push({});  
+}  
+</script>
+</head>
+<body>
+    <ins class="kakao_ad_area" style="display:none;"  
+            data-ad-unit="ADUNIT_ID"  //AdFit에서 발급 받은 광고단위코드 값  
+            data-ad-width="250"  // 광고단위 가로 사이즈
+            data-ad-height="250"  // 광고단위 세로 사이즈
+            data-ad-onfail="callBackFunc"</ins>
+   
+    <script async type="text/javascript" charset="utf-8" src="https://t1.daumcdn.net/kas/static/ba.min.js">
+    </script>
+</body>
+</html>
+이 문서는 Kakao 신디케이션 제휴 당사자에 한해 제공되는 자료로 가이드 라인을 포함한 모든 자료의 지적재산권은 주식회사 카카오가 보유합니다.
+
+Copyright © Kakao Corp. All rights reserved.
+
+About
+AdFit Web SDK for Publisher
+
+Resources
+ Readme
+ Activity
+ Custom properties
+Stars
+ 12 stars
+Watchers
+ 8 watching
+Forks
+ 11 forks
+Report repository
+Releases
+No releases published
+Packages
+No packages published
+Contributors
+4
+@kyungw00k
+kyungw00k Kyungwook Park
+@chonh0604
+chonh0604
+@jamie-swey
+jamie-swey
+@hoony6134
+hoony6134 JeongHoon Lim
+Footer
+© 2025 GitHub, Inc.
+Footer navigation
+Terms
+Privacy
+Security
+Status
+Community
+Docs
+Contact
+Manage cookies
+Do not share my personal information
