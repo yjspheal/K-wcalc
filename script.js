@@ -61,13 +61,39 @@ function collectHolidaySet(startDate, endDate, customText) {
     return set;
 }
 
+// 커스텀 휴일 입력값 파싱
+// - 화면에서는 JSON 배열 [{ date, name }] 로 저장합니다. (이름은 선택)
+// - 쉼표/공백으로 구분한 날짜 목록("2025-01-07, 2025-01-08")도 받습니다.
+function parseCustomHolidayEntries(text) {
+    if (!text || !String(text).trim()) return [];
+    const raw = String(text).trim();
+    let entries;
+    if (raw.startsWith('[')) {
+        try {
+            entries = JSON.parse(raw).map((e) =>
+                typeof e === 'string' ? { date: e, name: '' } : { date: e.date, name: e.name || '' },
+            );
+        } catch {
+            entries = [];
+        }
+    } else {
+        entries = raw.split(/[\s,]+/).map((date) => ({ date, name: '' }));
+    }
+    return entries
+        .filter((e) => parseDate(e.date))
+        .map((e) => ({ date: e.date, name: String(e.name).trim() }));
+}
+
 function parseCustomHolidays(text) {
-    if (!text) return [];
-    return text
-        .split(/\s|,/) // split by comma or whitespace
-        .map((t) => t.trim())
-        .filter(Boolean)
-        .filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t));
+    return parseCustomHolidayEntries(text).map((e) => e.date);
+}
+
+function customHolidayNameMap(text) {
+    const map = {};
+    parseCustomHolidayEntries(text).forEach(({ date, name }) => {
+        if (name) map[date] = name;
+    });
+    return map;
 }
 
 function isWeekend(date, includeSaturday) {
@@ -153,7 +179,8 @@ function findBusinessDate({ baseDate, offset, includeSaturday, excludeHolidays, 
     return { targetDate: current, steps };
 }
 
-function renderChips(container, dates, emptyText, showNames = false) {
+// names: { 'YYYY-MM-DD': '이름' } — 이름이 있으면 "날짜 (이름)" 으로 표시
+function renderChips(container, dates, emptyText, names = null) {
     container.innerHTML = '';
     if (!dates.length) {
         container.innerHTML = `<span class="chip chip--muted">${emptyText}</span>`;
@@ -162,11 +189,7 @@ function renderChips(container, dates, emptyText, showNames = false) {
     dates.forEach((d) => {
         const chip = document.createElement('span');
         chip.className = 'chip';
-        if (showNames && holidayNames[d]) {
-            chip.textContent = `${d} (${holidayNames[d]})`;
-        } else {
-            chip.textContent = d;
-        }
+        chip.textContent = names && names[d] ? `${d} (${names[d]})` : d;
         container.appendChild(chip);
     });
 }
@@ -186,6 +209,7 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates, cu
     const today = formatDate(new Date());
     const businessSet = new Set(businessDates);
     const customSet = new Set(parseCustomHolidays(customHolidayText));
+    const customNames = customHolidayNameMap(customHolidayText);
 
     // collect all dates from start to end month-by-month
     const calendars = [];
@@ -216,7 +240,8 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates, cu
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`;
             const weekday = (firstWeekday + d - 1) % 7;
-            const holidayName = holidayNames[dateStr] || (customSet.has(dateStr) ? '사용자 지정 휴일' : '');
+            const holidayName =
+                holidayNames[dateStr] || customNames[dateStr] || (customSet.has(dateStr) ? '커스텀 휴일' : '');
             let cls = 'biz-cal-day';
 
             if (businessSet.has(dateStr)) cls += ' business';
@@ -249,8 +274,9 @@ function renderMiniCalendar(container, year, month, selectedSet) {
     html += `<div class="cal-header"><button data-action="prev">‹</button><strong>${year}년 ${month + 1}월</strong><button data-action="next">›</button></div>`;
     html += '<div class="cal-grid">';
     // weekday labels
-    ['일', '월', '화', '수', '목', '금', '토'].forEach((d) => {
-        html += `<div class="cal-day disabled"><small>${d}</small></div>`;
+    weekdayLabels.forEach((d, idx) => {
+        const dayCls = idx === 0 ? ' sunday' : idx === 6 ? ' saturday' : '';
+        html += `<div class="cal-day disabled${dayCls}"><small>${d}</small></div>`;
     });
 
     // blank cells before first day
@@ -258,33 +284,81 @@ function renderMiniCalendar(container, year, month, selectedSet) {
 
     for (let d = 1; d <= daysInMonth; d++) {
         const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`;
-        const selClass = selectedSet.has(dateStr) ? 'selected' : '';
-        html += `<div class="cal-day ${selClass}" data-date="${dateStr}">${d}</div>`;
+        const weekday = (firstWeekday + d - 1) % 7;
+        let cls = 'cal-day';
+        if (holidayNames[dateStr] || weekday === 0) cls += ' sunday';
+        else if (weekday === 6) cls += ' saturday';
+        if (selectedSet.has(dateStr)) cls += ' selected';
+        html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
     }
 
     html += '</div>';
     container.innerHTML = html;
 }
 
-function initCustomCalendar(hiddenTextareaId, calendarContainerId, chipsContainerId, onChange) {
+function initCustomCalendar(hiddenTextareaId, calendarContainerId, listContainerId, onChange) {
     const hidden = document.getElementById(hiddenTextareaId);
     const container = document.getElementById(calendarContainerId);
-    const chips = document.getElementById(chipsContainerId);
+    const list = document.getElementById(listContainerId);
     if (!container) return;
 
-    const initial = hidden ? parseCustomHolidays(hidden.value) : [];
-    const selected = new Set(initial);
+    // date -> name (이름은 비워도 됨)
+    const selected = new Map();
+    (hidden ? parseCustomHolidayEntries(hidden.value) : []).forEach(({ date, name }) => selected.set(date, name));
     let view = new Date();
     view.setDate(1);
 
+    function sortedDates() {
+        return Array.from(selected.keys()).sort();
+    }
+
     function updateHidden() {
-        if (hidden) hidden.value = Array.from(selected).sort().join(',');
-        renderChips(chips, Array.from(selected).sort(), '선택된 휴일이 없습니다.');
+        if (hidden) {
+            hidden.value = JSON.stringify(sortedDates().map((date) => ({ date, name: selected.get(date) })));
+        }
         if (typeof onChange === 'function') onChange();
+    }
+
+    function renderList() {
+        if (!list) return;
+        list.innerHTML = '';
+        const dates = sortedDates();
+        if (!dates.length) {
+            list.innerHTML = '<span class="chip chip--muted">선택된 커스텀 휴일이 없습니다.</span>';
+            return;
+        }
+        dates.forEach((date) => {
+            const item = document.createElement('div');
+            item.className = 'custom-item';
+            item.dataset.date = date;
+
+            const label = document.createElement('span');
+            label.className = 'custom-item__date';
+            label.textContent = `${date} (${weekdayLabels[parseDate(date).getDay()]})`;
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'custom-item__name';
+            input.placeholder = '이름 (선택)';
+            input.maxLength = 30;
+            input.value = selected.get(date) || '';
+            input.setAttribute('aria-label', `${date} 휴일 이름`);
+
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.className = 'custom-item__remove';
+            remove.textContent = '×';
+            remove.title = '삭제';
+            remove.setAttribute('aria-label', `${date} 삭제`);
+
+            item.append(label, input, remove);
+            list.appendChild(item);
+        });
     }
 
     function render() {
         renderMiniCalendar(container, view.getFullYear(), view.getMonth(), selected);
+        renderList();
         updateHidden();
     }
 
@@ -292,43 +366,46 @@ function initCustomCalendar(hiddenTextareaId, calendarContainerId, chipsContaine
         const t = ev.target.closest('[data-action], .cal-day');
         if (!t) return;
         const action = t.dataset.action;
-        if (action === 'prev') {
-            view.setMonth(view.getMonth() - 1);
-            render();
-            return;
-        }
-        if (action === 'next') {
-            view.setMonth(view.getMonth() + 1);
+        if (action === 'prev' || action === 'next') {
+            view.setMonth(view.getMonth() + (action === 'prev' ? -1 : 1));
             render();
             return;
         }
         const date = t.dataset.date;
         if (date) {
             if (selected.has(date)) selected.delete(date);
-            else selected.add(date);
+            else selected.set(date, '');
             render();
+            if (selected.has(date) && list) {
+                // 새로 추가한 날짜의 이름 칸으로 바로 이동
+                const input = list.querySelector(`.custom-item[data-date="${date}"] .custom-item__name`);
+                if (input) input.focus();
+            }
         }
     });
 
-    // allow chips to remove items
-    if (chips) {
-        chips.addEventListener('click', (ev) => {
-            const chip = ev.target.closest('.chip');
-            if (!chip) return;
-            const val = chip.textContent.trim();
-            if (selected.has(val)) {
-                selected.delete(val);
-                render();
-            }
+    if (list) {
+        // 이름 입력: 목록을 다시 그리지 않아 입력 중 포커스가 유지됩니다.
+        list.addEventListener('input', (ev) => {
+            const item = ev.target.closest('.custom-item');
+            if (!item || !ev.target.classList.contains('custom-item__name')) return;
+            selected.set(item.dataset.date, ev.target.value);
+            updateHidden();
+        });
+        list.addEventListener('click', (ev) => {
+            const btn = ev.target.closest('.custom-item__remove');
+            if (!btn) return;
+            selected.delete(btn.closest('.custom-item').dataset.date);
+            render();
         });
     }
 
     render();
     return {
-        getSelected: () => Array.from(selected).sort(),
+        getSelected: () => sortedDates(),
         setSelected: (arr) => {
             selected.clear();
-            (arr || []).forEach((d) => selected.add(d));
+            (arr || []).forEach((d) => selected.set(d, ''));
             render();
         },
     };
@@ -435,13 +512,13 @@ function handleRangeCalculation() {
             document.getElementById('holidayList'),
             defaultHolidayDates,
             '제외된 공휴일 없음',
-            true
+            holidayNames,
         );
         renderChips(
             document.getElementById('customHolidayDetailList'),
             customHolidayDates,
             '커스텀 휴일 없음',
-            false  // custom holidays don't have preset names
+            customHolidayNameMap(customHolidayText),
         );
     }
 }
@@ -538,6 +615,7 @@ if (typeof module !== 'undefined' && module.exports) {
         calculateRange,
         findBusinessDate,
         missingHolidayYears,
+        parseCustomHolidayEntries,
         holidayNames,
     };
 }

@@ -9,6 +9,7 @@ const {
     calculateRange,
     findBusinessDate,
     missingHolidayYears,
+    parseCustomHolidayEntries,
     holidayNames,
 } = require('../script.js');
 
@@ -93,8 +94,22 @@ test('누락됐던 공휴일들이 반영된다', () => {
     }
 });
 
-test('사용자 지정 휴일', () => {
+test('커스텀 휴일', () => {
     assert.equal(range('2025-01-06', '2025-01-10', { customHolidayText: '2025-01-07, 2025-01-08' }).businessDays, 3);
+});
+
+test('이름이 있는 커스텀 휴일 (JSON 형식)', () => {
+    const text = JSON.stringify([
+        { date: '2025-01-07', name: '여름 휴가, "1일차"' },
+        { date: '2025-01-08', name: '' },
+        { date: '2025-02-30', name: '잘못된 날짜' },
+    ]);
+    assert.deepEqual(parseCustomHolidayEntries(text), [
+        { date: '2025-01-07', name: '여름 휴가, "1일차"' },
+        { date: '2025-01-08', name: '' },
+    ]);
+    assert.equal(range('2025-01-06', '2025-01-10', { customHolidayText: text }).businessDays, 3);
+    assert.deepEqual(parseCustomHolidayEntries('[broken'), []);
 });
 
 test('N 근무일 이동 (앞/뒤)', () => {
