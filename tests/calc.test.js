@@ -107,5 +107,6 @@ test('N 근무일 이동 (앞/뒤)', () => {
 
 test('공휴일 데이터가 없는 연도를 알려준다', () => {
     assert.deepEqual(missingHolidayYears(parseDate('2025-12-01'), parseDate('2026-01-31')), []);
-    assert.deepEqual(missingHolidayYears(parseDate('2026-12-01'), parseDate('2028-01-31')), [2027, 2028]);
+    // 데이터가 생길 일이 없는 먼 미래 연도로 확인 (API 갱신으로 내년 데이터가 추가돼도 깨지지 않도록)
+    assert.deepEqual(missingHolidayYears(parseDate('2098-12-01'), parseDate('2100-01-31')), [2098, 2099, 2100]);
 });
