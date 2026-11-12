@@ -1,116 +1,30 @@
-const defaultHolidays = {
-    2024: [
-        '2024-01-01',
-        '2024-02-09',
-        '2024-02-10',
-        '2024-02-11',
-        '2024-03-01',
-        '2024-05-05',
-        '2024-05-06',
-        '2024-05-15',
-        '2024-06-06',
-        '2024-08-15',
-        '2024-09-16',
-        '2024-09-17',
-        '2024-09-18',
-        '2024-10-03',
-        '2024-10-09',
-        '2024-12-25',
-    ],
-    2025: [
-        '2025-01-01',
-        '2025-01-28',
-        '2025-01-29',
-        '2025-01-30',
-        '2025-03-01',
-        '2025-05-05',
-        '2025-05-06',
-        '2025-06-06',
-        '2025-08-15',
-        '2025-10-03',
-        '2025-10-05',
-        '2025-10-06',
-        '2025-10-07',
-        '2025-12-25',
-    ],
-    2026: [
-        '2026-01-01',
-        '2026-02-16',
-        '2026-02-17',
-        '2026-02-18',
-        '2026-03-02',
-        '2026-05-05',
-        '2026-05-25',
-        '2026-06-03',
-        '2026-06-06',
-        '2026-08-17',
-        '2026-09-23',
-        '2026-09-24',
-        '2026-09-25',
-        '2026-10-05',
-        '2026-10-09',
-        '2026-12-25',
-    ],
-};
-
-const holidayNames = {
-    '2024-01-01': '신정',
-    '2024-02-09': '설날',
-    '2024-02-10': '설날',
-    '2024-02-11': '설날',
-    '2024-03-01': '삼일절',
-    '2024-05-05': '어린이날',
-    '2024-05-06': '어린이날 대체휴무',
-    '2024-05-15': '부처님오신날',
-    '2024-06-06': '현충일',
-    '2024-08-15': '광복절',
-    '2024-09-16': '추석',
-    '2024-09-17': '추석',
-    '2024-09-18': '추석',
-    '2024-10-03': '개천절',
-    '2024-10-09': '한글날',
-    '2024-12-25': '크리스마스',
-    '2025-01-01': '신정',
-    '2025-01-28': '설날',
-    '2025-01-29': '설날',
-    '2025-01-30': '설날',
-    '2025-03-01': '삼일절',
-    '2025-05-05': '어린이날',
-    '2025-05-06': '어린이날 대체휴무',
-    '2025-06-06': '현충일',
-    '2025-08-15': '광복절',
-    '2025-10-03': '개천절',
-    '2025-10-05': '추석',
-    '2025-10-06': '추석',
-    '2025-10-07': '추석',
-    '2025-12-25': '크리스마스',
-    '2026-01-01': '신정',
-    '2026-02-16': '설날',
-    '2026-02-17': '설날',
-    '2026-02-18': '설날',
-    '2026-03-02': '삼일절 대체공휴일',
-    '2026-05-05': '어린이날',
-    '2026-05-25': '부처님오신날 대체공휴일',
-    '2026-06-03': '지방선거일',
-    '2026-06-06': '현충일',
-    '2026-08-17': '광복절 대체공휴일',
-    '2026-09-23': '추석',
-    '2026-09-24': '추석',
-    '2026-09-25': '추석',
-    '2026-10-05': '개천절 대체공휴일',
-    '2026-10-09': '한글날',
-    '2026-12-25': '크리스마스',
-};
+// 공휴일 데이터는 holidays.js(globalThis.KR_HOLIDAYS)에서 읽습니다.
+const holidayData = (globalThis.KR_HOLIDAYS && globalThis.KR_HOLIDAYS.years) || {};
+const holidayNames = {};
+Object.values(holidayData).forEach((list) => {
+    list.forEach(({ date, name }) => {
+        holidayNames[date] = name;
+    });
+});
 
 const weekdayLabels = ['일', '월', '화', '수', '목', '금', '토'];
 
+function pad(n) {
+    return n.toString().padStart(2, '0');
+}
+
+// 날짜는 모두 로컬 자정 기준 Date 로 다룹니다.
+// (toISOString/`new Date('YYYY-MM-DD')` 는 UTC 기준이라 한국 00~09시나 해외 시간대에서 하루가 밀립니다.)
 function formatDate(date) {
-    return date.toISOString().slice(0, 10);
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function parseDate(value) {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || '').trim());
+    if (!m) return null;
+    const date = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    // 2025-02-30 같은 존재하지 않는 날짜 거부
+    return formatDate(date) === m[0] ? date : null;
 }
 
 function addDays(date, days) {
@@ -119,13 +33,29 @@ function addDays(date, days) {
     return result;
 }
 
+// 공휴일 데이터가 없는 연도 목록 (해당 연도는 공휴일이 반영되지 않음)
+function missingHolidayYears(startDate, endDate) {
+    const missing = [];
+    const yearStart = Math.min(startDate.getFullYear(), endDate.getFullYear());
+    const yearEnd = Math.max(startDate.getFullYear(), endDate.getFullYear());
+    for (let year = yearStart; year <= yearEnd; year++) {
+        if (!holidayData[year]) missing.push(year);
+    }
+    return missing;
+}
+
+function missingYearsWarning(years) {
+    if (!years.length) return '';
+    return `⚠ ${years.join(', ')}년 공휴일 데이터가 아직 없어 해당 연도는 공휴일이 반영되지 않았습니다.`;
+}
+
 function collectHolidaySet(startDate, endDate, customText) {
     const set = new Set();
     const yearStart = Math.min(startDate.getFullYear(), endDate.getFullYear());
     const yearEnd = Math.max(startDate.getFullYear(), endDate.getFullYear());
     for (let year = yearStart; year <= yearEnd; year++) {
-        const list = defaultHolidays[year] || [];
-        list.forEach((d) => set.add(d));
+        const list = holidayData[year] || [];
+        list.forEach(({ date }) => set.add(date));
     }
     parseCustomHolidays(customText).forEach((d) => set.add(d));
     return set;
@@ -216,8 +146,8 @@ function findBusinessDate({ baseDate, offset, includeSaturday, excludeHolidays, 
         if (!weekend && !holiday) {
             remaining -= 1;
         }
-        // guardrail for extreme loops
-        if (steps > 5000) break;
+        // 안전장치: 휴일 집합을 만든 범위를 벗어나면 중단
+        if (steps >= spanDays) break;
     }
 
     return { targetDate: current, steps };
@@ -252,7 +182,7 @@ function renderWeekdayStats(container, counts) {
 }
 
 // ---------- business days calendar (carousel view) ----------
-function renderBusinessCalendar(container, startDate, endDate, businessDates, includeSaturday, excludeHolidays, customText) {
+function renderBusinessCalendar(container, startDate, endDate, businessDates) {
     const today = formatDate(new Date());
     const businessSet = new Set(businessDates);
 
@@ -301,10 +231,6 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates, in
 }
 
 // ---------- mini calendar for selecting custom holidays ----------
-function pad(n) {
-    return n.toString().padStart(2, '0');
-}
-
 function renderMiniCalendar(container, year, month, selectedSet) {
     // year, month (0-indexed)
     const first = new Date(year, month, 1);
@@ -439,24 +365,26 @@ function handleRangeCalculation() {
     const customHolidayText = document.getElementById('customHolidays').value;
     const errorBox = document.getElementById('rangeError');
 
-    if (!startValue || !endValue) {
-        setDefaultDates();
-    }
-
-    const startDate = parseDate(document.getElementById('startDate').value);
-    const endDate = parseDate(document.getElementById('endDate').value);
+    // 입력값을 덮어쓰지 않고 안내만 합니다.
+    const startDate = parseDate(startValue);
+    const endDate = parseDate(endValue);
     if (!startDate || !endDate) {
         errorBox.textContent = '시작일과 종료일을 모두 입력해주세요.';
         return;
     }
 
-    errorBox.textContent = '';
+    const messages = [];
     let from = startDate;
     let to = endDate;
     if (startDate > endDate) {
         [from, to] = [endDate, startDate];
-        errorBox.textContent = '시작일이 종료일보다 늦어 날짜를 교환했습니다.';
+        messages.push('시작일이 종료일보다 늦어 날짜를 교환했습니다.');
     }
+    if (excludeHolidays) {
+        const warning = missingYearsWarning(missingHolidayYears(from, to));
+        if (warning) messages.push(warning);
+    }
+    errorBox.textContent = messages.join(' ');
 
     const stats = calculateRange({
         startDate: from,
@@ -482,9 +410,6 @@ function handleRangeCalculation() {
             from,
             to,
             stats.businessDates,
-            includeSaturday,
-            excludeHolidays,
-            customHolidayText
         );
     }
 
@@ -512,21 +437,24 @@ function handleRangeCalculation() {
     }
 }
 
+const MAX_OFFSET = 10000;
+
 function handleOffsetCalculation() {
     const baseValue = document.getElementById('baseDate').value;
-    const offsetValue = Number(document.getElementById('offsetDays').value);
+    const offsetRaw = document.getElementById('offsetDays').value.trim();
+    const offsetValue = Number(offsetRaw);
     const includeSaturday = document.getElementById('includeSaturdayOffset').checked;
     const excludeHolidays = document.getElementById('excludeHolidaysOffset').checked;
     const customHolidayText = document.getElementById('customHolidaysOffset').value;
     const errorBox = document.getElementById('offsetError');
 
-    if (!baseValue) {
-        setDefaultDates();
+    const baseDate = parseDate(baseValue);
+    if (!baseDate || offsetRaw === '' || !Number.isInteger(offsetValue)) {
+        errorBox.textContent = '기준일과 이동할 근무일 수(정수)를 올바르게 입력해주세요.';
+        return;
     }
-
-    const baseDate = parseDate(document.getElementById('baseDate').value);
-    if (!baseDate || Number.isNaN(offsetValue)) {
-        errorBox.textContent = '기준일과 이동할 근무일 수를 올바르게 입력해주세요.';
+    if (Math.abs(offsetValue) > MAX_OFFSET) {
+        errorBox.textContent = `이동할 근무일 수는 ±${MAX_OFFSET}일 이내로 입력해주세요.`;
         return;
     }
 
@@ -538,6 +466,10 @@ function handleOffsetCalculation() {
         excludeHolidays,
         customHolidayText,
     });
+
+    errorBox.textContent = excludeHolidays
+        ? missingYearsWarning(missingHolidayYears(baseDate, result.targetDate))
+        : '';
 
     document.getElementById('offsetSummary').hidden = false;
     document.getElementById('offsetResult').textContent = formatDate(result.targetDate);
@@ -581,8 +513,22 @@ function initApp() {
     // Results only appear after button click
 }
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
-} else {
-    initApp();
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initApp);
+    } else {
+        initApp();
+    }
+}
+
+// Node 테스트용 export (브라우저에서는 무시됨)
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        parseDate,
+        formatDate,
+        calculateRange,
+        findBusinessDate,
+        missingHolidayYears,
+        holidayNames,
+    };
 }
