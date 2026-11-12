@@ -126,14 +126,39 @@ function isoToday() {
     const dateStr = day.getAttribute('data-date');
     day.click();
 
-    // after click, hidden textarea should include the dateStr
-    const hidVal = hidden.value;
-    const chipExists = Array.from(chips.querySelectorAll('.chip')).some(c => c.textContent.trim() === dateStr);
-    if (!hidVal.includes(dateStr) || !chipExists) {
-        console.error('calendar selection did not update hidden textarea or chips', hidVal);
+    // after click, hidden value should include the date and a list item should appear
+    const item = chips.querySelector(`.custom-item[data-date="${dateStr}"]`);
+    if (!hidden.value.includes(dateStr) || !item) {
+        console.error('calendar selection did not update hidden value or list', hidden.value);
         process.exit(12);
     }
     console.log('calendar selection works', dateStr);
+
+    // Test 6: custom holiday name appears in results
+    const nameInput = item.querySelector('.custom-item__name');
+    nameInput.value = '여름 휴가';
+    nameInput.dispatchEvent(new window.Event('input', { bubbles: true }));
+    if (!hidden.value.includes('여름 휴가')) {
+        console.error('name input did not update hidden value', hidden.value);
+        process.exit(13);
+    }
+    s.value = dateStr;
+    e.value = dateStr;
+    window.handleRangeCalculation();
+    const detail = doc.getElementById('customHolidayDetailList').textContent;
+    if (!detail.includes(`${dateStr} (여름 휴가)`)) {
+        console.error('custom holiday name not shown in results', detail);
+        process.exit(14);
+    }
+    console.log('custom holiday name shown: ✓');
+
+    // Test 7: remove button deletes the item
+    item.querySelector('.custom-item__remove').click();
+    if (hidden.value.includes(dateStr) || chips.querySelector('.custom-item')) {
+        console.error('remove button did not delete custom holiday', hidden.value);
+        process.exit(15);
+    }
+    console.log('custom holiday remove works: ✓');
 
     console.log('ALL TESTS PASSED');
     console.log('- Initialization: No auto-calculation ✓');
