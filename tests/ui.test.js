@@ -189,6 +189,51 @@ function isoToday() {
     }
     console.log('workday picker works: ✓');
 
+    // Test 9: range error hides stale results
+    e.value = '';
+    window.handleRangeCalculation();
+    if (!doc.getElementById('rangeSummary').hidden || !doc.getElementById('businessCalendar').hidden) {
+        console.error('range results should be hidden on input error');
+        process.exit(19);
+    }
+    console.log('range error hides old results: ✓');
+
+    // Test 10: N 근무일 이동 탭
+    const base = doc.getElementById('baseDate');
+    const n = doc.getElementById('offsetDays');
+    const offsetSummary = doc.getElementById('offsetSummary');
+    base.value = '2026-09-23';
+    n.value = '1';
+    window.handleOffsetCalculation();
+    const resultText = doc.getElementById('offsetResult').textContent;
+    const traceText = doc.getElementById('offsetTrace').textContent;
+    if (offsetSummary.hidden || resultText !== '2026-09-28 (월)' || !traceText.includes('1 근무일 후 · 달력으로 5일 후')) {
+        console.error('offset result wrong', resultText, traceText);
+        process.exit(20);
+    }
+    n.value = '-3';
+    base.value = '2026-10-12';
+    window.handleOffsetCalculation();
+    if (doc.getElementById('offsetResult').textContent !== '2026-10-06 (화)'
+        || !doc.getElementById('offsetTrace').textContent.includes('3 근무일 전')) {
+        console.error('negative offset wrong', doc.getElementById('offsetResult').textContent);
+        process.exit(21);
+    }
+    n.value = '';
+    window.handleOffsetCalculation();
+    if (!offsetSummary.hidden || !doc.getElementById('offsetError').textContent) {
+        console.error('offset result should be hidden on input error');
+        process.exit(22);
+    }
+    base.value = '2026-09-26';
+    n.value = '0';
+    window.handleOffsetCalculation();
+    if (!doc.getElementById('offsetError').textContent.includes('근무일이 아닙니다')) {
+        console.error('N=0 on non-workday notice missing');
+        process.exit(23);
+    }
+    console.log('offset tab works: ✓');
+
     console.log('ALL TESTS PASSED');
     console.log('- Initialization: No auto-calculation ✓');
     console.log('- Default dates: start=today, end=empty, base=today ✓');
