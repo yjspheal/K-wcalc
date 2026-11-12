@@ -118,7 +118,12 @@ function isoToday() {
     }
 
     // find a clickable day element
-    const day = calContainer.querySelector('.cal-day[data-date]');
+    // 공휴일이 아닌 평일(월~금)을 고릅니다. 주말·공휴일은 '제외된 커스텀 휴일'로 세지 않기 때문
+    const day = Array.from(calContainer.querySelectorAll('.cal-day[data-date]')).find((el) => {
+        const [y, m, d] = el.dataset.date.split('-').map(Number);
+        const wd = new Date(y, m - 1, d).getDay();
+        return wd >= 1 && wd <= 5 && !el.classList.contains('holiday');
+    });
     if (!day) {
         console.error('no clickable day found in mini calendar');
         process.exit(11);
@@ -159,6 +164,30 @@ function isoToday() {
         process.exit(15);
     }
     console.log('custom holiday remove works: ✓');
+
+    // Test 8: workday picker (default 월~금) and 화·목·토 selection
+    const picker = doc.getElementById('workdaysRange');
+    const boxes = Array.from(picker.querySelectorAll('input[type="checkbox"]'));
+    const checked = boxes.filter((b) => b.checked).map((b) => b.value).sort().join(',');
+    if (boxes.length !== 7 || checked !== '1,2,3,4,5') {
+        console.error('workday picker default not 월~금', boxes.length, checked);
+        process.exit(16);
+    }
+    boxes.forEach((b) => { b.checked = ['2', '4', '6'].includes(b.value); });
+    s.value = '2026-11-01';
+    e.value = '2026-11-14';
+    window.handleRangeCalculation();
+    if (doc.getElementById('businessDays').textContent !== '6') {
+        console.error('화·목·토 근무 계산 오류', doc.getElementById('businessDays').textContent);
+        process.exit(17);
+    }
+    boxes.forEach((b) => { b.checked = false; });
+    window.handleRangeCalculation();
+    if (!doc.getElementById('rangeError').textContent.includes('근무 요일')) {
+        console.error('no workday selected error not shown');
+        process.exit(18);
+    }
+    console.log('workday picker works: ✓');
 
     console.log('ALL TESTS PASSED');
     console.log('- Initialization: No auto-calculation ✓');

@@ -10,6 +10,7 @@ const {
     findBusinessDate,
     missingHolidayYears,
     parseCustomHolidayEntries,
+    resolveWorkdays,
     holidayNames,
 } = require('../script.js');
 
@@ -17,7 +18,7 @@ const range = (start, end, opts = {}) =>
     calculateRange({
         startDate: parseDate(start),
         endDate: parseDate(end),
-        includeSaturday: false,
+        workdays: [1, 2, 3, 4, 5],
         excludeHolidays: true,
         customHolidayText: '',
         includeEnd: true,
@@ -29,7 +30,7 @@ const shift = (base, offset, opts = {}) =>
         findBusinessDate({
             baseDate: parseDate(base),
             offset,
-            includeSaturday: false,
+            workdays: [1, 2, 3, 4, 5],
             excludeHolidays: true,
             customHolidayText: '',
             ...opts,
@@ -55,7 +56,26 @@ test('2025 추석·한글날 연휴 구간', () => {
     assert.equal(s.calendarDays, 10);
     assert.deepEqual(s.businessDates, ['2025-10-01', '2025-10-02', '2025-10-10']);
     assert.equal(s.weekendDays, 2);
-    assert.equal(s.holidayDays, 6); // 10/3, 10/5(일), 10/6~10/9
+    assert.equal(s.holidayDays, 5); // 10/3, 10/6~10/9 (10/5 일요일은 쉬는 요일로 셈)
+});
+
+test('근무일 + 쉬는 요일 + 제외된 휴일 = 총 달력일', () => {
+    const cases = [
+        ['2025-10-01', '2025-10-10', {}],
+        ['2026-09-01', '2026-10-31', { workdays: [2, 4, 6] }],
+        ['2026-01-01', '2027-12-31', { workdays: [1, 2, 3, 4, 5, 6] }],
+        ['2026-01-01', '2026-12-31', { customHolidayText: '2026-03-01, 2026-11-05' }],
+        ['2026-01-01', '2026-12-31', { excludeHolidays: false }],
+    ];
+    for (const [start, end, opts] of cases) {
+        const s = range(start, end, opts);
+        assert.equal(s.businessDays + s.weekendDays + s.holidayDays, s.calendarDays, `${start}~${end}`);
+    }
+    // 화·목·토 근무 2026년 9~10월: 9/25(금) 추석은 쉬는 요일로 셈
+    const s = range('2026-09-01', '2026-10-31', { workdays: [2, 4, 6] });
+    assert.equal(s.calendarDays, 61);
+    assert.equal(s.businessDays, 24);
+    assert.deepEqual(s.holidayDates, ['2026-09-24', '2026-09-26', '2026-10-03']);
 });
 
 test('종료일 미포함', () => {
@@ -67,12 +87,12 @@ test('공휴일 제외 끄기', () => {
     assert.equal(range('2025-10-01', '2025-10-10', { excludeHolidays: false }).businessDays, 8);
 });
 
-test('토요일 포함 시 토요일 공휴일은 근무일이 아니다', () => {
-    const s = range('2026-08-15', '2026-08-15', { includeSaturday: true });
+test('월~토 근무 시 토요일 공휴일은 근무일이 아니다', () => {
+    const s = range('2026-08-15', '2026-08-15', { workdays: [1, 2, 3, 4, 5, 6] });
     assert.equal(s.businessDays, 0);
     assert.equal(s.holidayDays, 1);
     // 공휴일이 아닌 토요일은 근무일
-    assert.equal(range('2026-08-22', '2026-08-22', { includeSaturday: true }).businessDays, 1);
+    assert.equal(range('2026-08-22', '2026-08-22', { workdays: [1, 2, 3, 4, 5, 6] }).businessDays, 1);
 });
 
 test('2026 추석은 9/24~26 이며 9/23 은 근무일', () => {
@@ -117,7 +137,29 @@ test('N 근무일 이동 (앞/뒤)', () => {
     assert.equal(shift('2025-10-10', -1), '2025-10-02');
     assert.equal(shift('2025-01-06', 0), '2025-01-06');
     assert.equal(shift('2025-01-10', 1), '2025-01-13'); // 금 → 월
-    assert.equal(shift('2025-01-10', 1, { includeSaturday: true }), '2025-01-11');
+    assert.equal(shift('2025-01-10', 1, { workdays: [1, 2, 3, 4, 5, 6] }), '2025-01-11');
+});
+
+test('근무 요일 지정: 화·목·토 근무', () => {
+    const tts = { workdays: [2, 4, 6] };
+    const s = range('2026-11-01', '2026-11-14', tts);
+    assert.deepEqual(s.businessDates, ['2026-11-03', '2026-11-05', '2026-11-07', '2026-11-10', '2026-11-12', '2026-11-14']);
+    assert.equal(s.weekendDays, 8); // 쉬는 요일
+    // 추석(9/24 목, 9/26 토)과 겹치면 그 주 근무일은 화요일 하루
+    assert.deepEqual(range('2026-09-21', '2026-09-27', tts).businessDates, ['2026-09-22']);
+    assert.equal(shift('2026-11-05', 1, tts), '2026-11-07');
+    assert.equal(shift('2026-11-05', 2, tts), '2026-11-10');
+    assert.equal(shift('2026-11-10', -1, tts), '2026-11-07');
+});
+
+test('근무 요일 지정: 주 1일 근무도 먼 날짜까지 계산된다', () => {
+    // 매주 수요일만 근무, 100 근무일 뒤 (공휴일 제외 끔)
+    assert.equal(shift('2026-01-07', 100, { workdays: [3], excludeHolidays: false }), '2027-12-08');
+});
+
+test('예전 includeSaturday 옵션도 계속 동작한다', () => {
+    assert.deepEqual([...resolveWorkdays({ includeSaturday: true })].sort(), [1, 2, 3, 4, 5, 6]);
+    assert.deepEqual([...resolveWorkdays({})].sort(), [1, 2, 3, 4, 5]);
 });
 
 test('공휴일 데이터가 없는 연도를 알려준다', () => {

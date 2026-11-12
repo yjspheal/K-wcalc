@@ -236,6 +236,72 @@ textarea:focus {
     white-space: nowrap;
 }
 
+/* 근무 요일 선택 */
+.workday-picker {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 10px 0 4px;
+}
+
+.workday-picker__label {
+    font-weight: 600;
+}
+
+.workday-picker__days {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.day-toggle {
+    position: relative;
+    cursor: pointer;
+}
+
+.day-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+}
+
+.day-toggle span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #f8fafc;
+    color: var(--muted);
+    font-weight: 600;
+    user-select: none;
+}
+
+.day-toggle.saturday span {
+    color: #2563eb;
+}
+
+.day-toggle.sunday span {
+    color: #dc2626;
+}
+
+.day-toggle input:checked + span {
+    background: var(--primary);
+    border-color: var(--primary-strong);
+    color: #fff;
+}
+
+.day-toggle input:focus-visible + span {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .custom-holiday {
     margin: 10px 0 4px;
 }
@@ -399,6 +465,10 @@ textarea:focus {
 
 .mini-calendar .cal-day.sunday {
     color: #dc2626;
+}
+
+.mini-calendar .cal-day.holiday {
+    background: #fee2e2;
 }
 
 .mini-calendar .cal-day.selected {
@@ -586,6 +656,13 @@ textarea:focus {
 
 .biz-cal-day.sunday {
     color: #dc2626;
+}
+
+/* 공휴일·커스텀 휴일: 연한 빨간 배경 */
+.biz-cal-day.holiday {
+    background: #fee2e2;
+    border-color: #fecaca;
+    font-weight: 600;
 }
 
 .biz-cal-day.today {

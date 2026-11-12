@@ -24,7 +24,7 @@
             </p>
             <div class="hero__badges">
                 <span class="badge">근무일/영업일</span>
-                <span class="badge">토요일 포함 여부</span>
+                <span class="badge">근무 요일 지정</span>
                 <span class="badge">한국 공휴일</span>
                 <span class="badge">커스텀 휴일</span>
             </div>
@@ -60,11 +60,11 @@
                 </div>
                 <details class="options" id="rangeOptions">
                     <summary>추가 옵션 (커스텀)</summary>
+                    <div class="workday-picker">
+                        <span class="workday-picker__label">근무 요일</span>
+                        <div class="workday-picker__days" id="workdaysRange" role="group" aria-label="근무 요일 선택"></div>
+                    </div>
                     <div class="options-grid">
-                        <label class="checkbox">
-                            <input type="checkbox" id="includeSaturday" />
-                            <span>토요일 포함</span>
-                        </label>
                         <label class="checkbox">
                             <input type="checkbox" id="excludeHolidays" checked />
                             <span>한국 공휴일 제외</span>
@@ -97,7 +97,7 @@
                             <dd><span id="businessDays">-</span>일</dd>
                         </div>
                         <div>
-                            <dt>제외된 주말</dt>
+                            <dt>쉬는 요일</dt>
                             <dd><span id="weekendDays">-</span>일</dd>
                         </div>
                         <div>
@@ -142,11 +142,11 @@
                 </div>
                 <details class="options" id="offsetOptions">
                     <summary>추가 옵션 (커스텀)</summary>
+                    <div class="workday-picker">
+                        <span class="workday-picker__label">근무 요일</span>
+                        <div class="workday-picker__days" id="workdaysOffset" role="group" aria-label="근무 요일 선택"></div>
+                    </div>
                     <div class="options-grid">
-                        <label class="checkbox">
-                            <input type="checkbox" id="includeSaturdayOffset" />
-                            <span>토요일 포함</span>
-                        </label>
                         <label class="checkbox">
                             <input type="checkbox" id="excludeHolidaysOffset" checked />
                             <span>한국 공휴일 제외</span>
@@ -178,7 +178,7 @@
         <section class="info">
             <h2>계산 기준 안내</h2>
             <ul>
-                <li>근무일은 기본적으로 월~금이며, 옵션으로 토요일을 포함할 수 있습니다.</li>
+                <li>근무일은 기본적으로 월~금이며, 추가 옵션에서 근무 요일을 직접 고를 수 있습니다. (예: 화·목·토)</li>
                 <li>공휴일 제외를 선택하면 한국 공휴일과 사용자가 지정한 휴일을 모두 제외합니다.</li>
                 <li>모든 계산은 브라우저 내에서 수행되며 서버로 어떠한 데이터도 전송하지 않습니다.</li>
             </ul>
