@@ -56,7 +56,26 @@ test('2025 추석·한글날 연휴 구간', () => {
     assert.equal(s.calendarDays, 10);
     assert.deepEqual(s.businessDates, ['2025-10-01', '2025-10-02', '2025-10-10']);
     assert.equal(s.weekendDays, 2);
-    assert.equal(s.holidayDays, 6); // 10/3, 10/5(일), 10/6~10/9
+    assert.equal(s.holidayDays, 5); // 10/3, 10/6~10/9 (10/5 일요일은 쉬는 요일로 셈)
+});
+
+test('근무일 + 쉬는 요일 + 제외된 휴일 = 총 달력일', () => {
+    const cases = [
+        ['2025-10-01', '2025-10-10', {}],
+        ['2026-09-01', '2026-10-31', { workdays: [2, 4, 6] }],
+        ['2026-01-01', '2027-12-31', { workdays: [1, 2, 3, 4, 5, 6] }],
+        ['2026-01-01', '2026-12-31', { customHolidayText: '2026-03-01, 2026-11-05' }],
+        ['2026-01-01', '2026-12-31', { excludeHolidays: false }],
+    ];
+    for (const [start, end, opts] of cases) {
+        const s = range(start, end, opts);
+        assert.equal(s.businessDays + s.weekendDays + s.holidayDays, s.calendarDays, `${start}~${end}`);
+    }
+    // 화·목·토 근무 2026년 9~10월: 9/25(금) 추석은 쉬는 요일로 셈
+    const s = range('2026-09-01', '2026-10-31', { workdays: [2, 4, 6] });
+    assert.equal(s.calendarDays, 61);
+    assert.equal(s.businessDays, 24);
+    assert.deepEqual(s.holidayDates, ['2026-09-24', '2026-09-26', '2026-10-03']);
 });
 
 test('종료일 미포함', () => {

@@ -118,7 +118,12 @@ function isoToday() {
     }
 
     // find a clickable day element
-    const day = calContainer.querySelector('.cal-day[data-date]');
+    // 공휴일이 아닌 평일(월~금)을 고릅니다. 주말·공휴일은 '제외된 커스텀 휴일'로 세지 않기 때문
+    const day = Array.from(calContainer.querySelectorAll('.cal-day[data-date]')).find((el) => {
+        const [y, m, d] = el.dataset.date.split('-').map(Number);
+        const wd = new Date(y, m - 1, d).getDay();
+        return wd >= 1 && wd <= 5 && !el.classList.contains('holiday');
+    });
     if (!day) {
         console.error('no clickable day found in mini calendar');
         process.exit(11);

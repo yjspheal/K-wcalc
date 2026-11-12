@@ -135,12 +135,17 @@ function calculateRange({ startDate, endDate, workdays, includeSaturday, exclude
         stats.calendarDays += 1;
         stats.weekdayCounts[current.getDay()] += 1;
 
-        if (!weekend && !holiday) {
+        // 각 날짜는 근무일 / 쉬는 요일 / 제외된 휴일 중 하나로만 셉니다.
+        // (쉬는 요일과 공휴일이 겹치면 쉬는 요일로 셈 → 세 값의 합 = 총 달력일)
+        if (weekend) {
+            stats.weekendDays += 1;
+            stats.weekendDates.push(dateStr);
+        } else if (holiday) {
+            stats.holidayDays += 1;
+            stats.holidayDates.push(dateStr);
+        } else {
             stats.businessDays += 1;
             stats.businessDates.push(dateStr);
-        } else {
-            if (weekend) stats.weekendDays += 1, stats.weekendDates.push(dateStr);
-            if (holiday) stats.holidayDays += 1, stats.holidayDates.push(dateStr);
         }
 
         current = addDays(current, 1);
