@@ -160,6 +160,30 @@ function isoToday() {
     }
     console.log('custom holiday remove works: ✓');
 
+    // Test 8: workday picker (default 월~금) and 화·목·토 selection
+    const picker = doc.getElementById('workdaysRange');
+    const boxes = Array.from(picker.querySelectorAll('input[type="checkbox"]'));
+    const checked = boxes.filter((b) => b.checked).map((b) => b.value).sort().join(',');
+    if (boxes.length !== 7 || checked !== '1,2,3,4,5') {
+        console.error('workday picker default not 월~금', boxes.length, checked);
+        process.exit(16);
+    }
+    boxes.forEach((b) => { b.checked = ['2', '4', '6'].includes(b.value); });
+    s.value = '2026-11-01';
+    e.value = '2026-11-14';
+    window.handleRangeCalculation();
+    if (doc.getElementById('businessDays').textContent !== '6') {
+        console.error('화·목·토 근무 계산 오류', doc.getElementById('businessDays').textContent);
+        process.exit(17);
+    }
+    boxes.forEach((b) => { b.checked = false; });
+    window.handleRangeCalculation();
+    if (!doc.getElementById('rangeError').textContent.includes('근무 요일')) {
+        console.error('no workday selected error not shown');
+        process.exit(18);
+    }
+    console.log('workday picker works: ✓');
+
     console.log('ALL TESTS PASSED');
     console.log('- Initialization: No auto-calculation ✓');
     console.log('- Default dates: start=today, end=empty, base=today ✓');

@@ -96,15 +96,21 @@ function customHolidayNameMap(text) {
     return map;
 }
 
-function isWeekend(date, includeSaturday) {
-    const day = date.getDay();
-    if (includeSaturday) {
-        return day === 0; // only Sunday
-    }
-    return day === 0 || day === 6;
+const DEFAULT_WORKDAYS = [1, 2, 3, 4, 5]; // 월~금
+
+// 근무 요일 Set (0=일 ~ 6=토). workdays 가 없으면 예전 includeSaturday 옵션으로 결정
+function resolveWorkdays({ workdays, includeSaturday } = {}) {
+    if (Array.isArray(workdays)) return new Set(workdays.map(Number));
+    return new Set(includeSaturday ? [...DEFAULT_WORKDAYS, 6] : DEFAULT_WORKDAYS);
 }
 
-function calculateRange({ startDate, endDate, includeSaturday, excludeHolidays, customHolidayText, includeEnd = true }) {
+// 근무 요일이 아닌 날 (주말·쉬는 요일)
+function isOffDay(date, workdaySet) {
+    return !workdaySet.has(date.getDay());
+}
+
+function calculateRange({ startDate, endDate, workdays, includeSaturday, excludeHolidays, customHolidayText, includeEnd = true }) {
+    const workdaySet = resolveWorkdays({ workdays, includeSaturday });
     const holidaySet = excludeHolidays
         ? collectHolidaySet(startDate, endDate, customHolidayText)
         : new Set();
@@ -124,7 +130,7 @@ function calculateRange({ startDate, endDate, includeSaturday, excludeHolidays, 
     const comparator = (c, e) => (includeEnd ? c <= e : c < e);
     while (comparator(current, endDate)) {
         const dateStr = formatDate(current);
-        const weekend = isWeekend(current, includeSaturday);
+        const weekend = isOffDay(current, workdaySet);
         const holiday = excludeHolidays && holidaySet.has(dateStr);
         stats.calendarDays += 1;
         stats.weekdayCounts[current.getDay()] += 1;
@@ -143,8 +149,9 @@ function calculateRange({ startDate, endDate, includeSaturday, excludeHolidays, 
     return stats;
 }
 
-function findBusinessDate({ baseDate, offset, includeSaturday, excludeHolidays, customHolidayText }) {
-    if (offset === 0) {
+function findBusinessDate({ baseDate, offset, workdays, includeSaturday, excludeHolidays, customHolidayText }) {
+    const workdaySet = resolveWorkdays({ workdays, includeSaturday });
+    if (offset === 0 || workdaySet.size === 0) {
         return { targetDate: baseDate, steps: 0 };
     }
 
@@ -152,7 +159,8 @@ function findBusinessDate({ baseDate, offset, includeSaturday, excludeHolidays, 
     let remaining = Math.abs(offset);
     let current = new Date(baseDate);
 
-    const spanDays = Math.abs(offset) * 3 + 366;
+    // 주 1일 근무여도 충분하도록 (근무일 수 × 7일 + 공휴일 여유 1년)
+    const spanDays = Math.abs(offset) * 7 + 366;
     const boundaryDate = addDays(baseDate, offset > 0 ? spanDays : -spanDays);
     const holidaySet = excludeHolidays
         ? collectHolidaySet(
@@ -167,7 +175,7 @@ function findBusinessDate({ baseDate, offset, includeSaturday, excludeHolidays, 
         current = addDays(current, direction);
         steps += 1;
         const dateStr = formatDate(current);
-        const weekend = isWeekend(current, includeSaturday);
+        const weekend = isOffDay(current, workdaySet);
         const holiday = excludeHolidays && holidaySet.has(dateStr);
         if (!weekend && !holiday) {
             remaining -= 1;
@@ -452,7 +460,7 @@ function setDefaultDates() {
 function handleRangeCalculation() {
     const startValue = document.getElementById('startDate').value;
     const endValue = document.getElementById('endDate').value;
-    const includeSaturday = document.getElementById('includeSaturday').checked;
+    const workdays = readWorkdays('workdaysRange');
     const excludeHolidays = document.getElementById('excludeHolidays').checked;
     const includeEnd = document.getElementById('includeEnd')?.checked ?? true;
     const customHolidayText = document.getElementById('customHolidays').value;
@@ -463,6 +471,10 @@ function handleRangeCalculation() {
     const endDate = parseDate(endValue);
     if (!startDate || !endDate) {
         errorBox.textContent = '시작일과 종료일을 모두 입력해주세요.';
+        return;
+    }
+    if (!workdays.length) {
+        errorBox.textContent = '근무 요일을 하루 이상 선택해주세요.';
         return;
     }
 
@@ -482,7 +494,7 @@ function handleRangeCalculation() {
     const stats = calculateRange({
         startDate: from,
         endDate: to,
-        includeSaturday,
+        workdays,
         excludeHolidays,
         customHolidayText,
         includeEnd,
@@ -533,11 +545,38 @@ function handleRangeCalculation() {
 
 const MAX_OFFSET = 10000;
 
+// 근무 요일 선택 영역에서 체크된 요일 (0=일 ~ 6=토)
+function readWorkdays(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return [...DEFAULT_WORKDAYS];
+    return Array.from(container.querySelectorAll('input[type="checkbox"]:checked')).map((el) => Number(el.value));
+}
+
+function renderWorkdayPicker(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML = '';
+    // 월요일부터 표시 (월 화 수 목 금 토 일)
+    [1, 2, 3, 4, 5, 6, 0].forEach((day) => {
+        const label = document.createElement('label');
+        label.className = 'day-toggle' + (day === 0 ? ' sunday' : day === 6 ? ' saturday' : '');
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.value = String(day);
+        input.checked = DEFAULT_WORKDAYS.includes(day);
+        input.setAttribute('aria-label', `${weekdayLabels[day]}요일 근무`);
+        const text = document.createElement('span');
+        text.textContent = weekdayLabels[day];
+        label.append(input, text);
+        container.appendChild(label);
+    });
+}
+
 function handleOffsetCalculation() {
     const baseValue = document.getElementById('baseDate').value;
     const offsetRaw = document.getElementById('offsetDays').value.trim();
     const offsetValue = Number(offsetRaw);
-    const includeSaturday = document.getElementById('includeSaturdayOffset').checked;
+    const workdays = readWorkdays('workdaysOffset');
     const excludeHolidays = document.getElementById('excludeHolidaysOffset').checked;
     const customHolidayText = document.getElementById('customHolidaysOffset').value;
     const errorBox = document.getElementById('offsetError');
@@ -551,12 +590,16 @@ function handleOffsetCalculation() {
         errorBox.textContent = `이동할 근무일 수는 ±${MAX_OFFSET}일 이내로 입력해주세요.`;
         return;
     }
+    if (!workdays.length) {
+        errorBox.textContent = '근무 요일을 하루 이상 선택해주세요.';
+        return;
+    }
 
     errorBox.textContent = '';
     const result = findBusinessDate({
         baseDate,
         offset: offsetValue,
-        includeSaturday,
+        workdays,
         excludeHolidays,
         customHolidayText,
     });
@@ -594,6 +637,8 @@ function bindEvents() {
 
 function initApp() {
     setDefaultDates();
+    renderWorkdayPicker('workdaysRange');
+    renderWorkdayPicker('workdaysOffset');
     // initialize custom holiday calendars (range and offset)
     // note: calendar changes trigger calculation only when button is clicked
     initCustomCalendar('customHolidays', 'customHolidayCalendar', 'customHolidayChips', () => {
@@ -624,6 +669,7 @@ if (typeof module !== 'undefined' && module.exports) {
         findBusinessDate,
         missingHolidayYears,
         parseCustomHolidayEntries,
+        resolveWorkdays,
         holidayNames,
     };
 }
