@@ -401,6 +401,10 @@ textarea:focus {
     color: #dc2626;
 }
 
+.mini-calendar .cal-day.holiday {
+    background: #fee2e2;
+}
+
 .mini-calendar .cal-day.selected {
     background: var(--primary);
     color: #fff;
@@ -586,6 +590,13 @@ textarea:focus {
 
 .biz-cal-day.sunday {
     color: #dc2626;
+}
+
+/* 공휴일·커스텀 휴일: 연한 빨간 배경 */
+.biz-cal-day.holiday {
+    background: #fee2e2;
+    border-color: #fecaca;
+    font-weight: 600;
 }
 
 .biz-cal-day.today {

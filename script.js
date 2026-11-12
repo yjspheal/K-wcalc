@@ -204,6 +204,10 @@ function renderWeekdayStats(container, counts) {
     });
 }
 
+function escapeAttr(text) {
+    return String(text).replace(/[&"<>]/g, (ch) => `&#${ch.charCodeAt(0)};`);
+}
+
 // ---------- business days calendar (carousel view) ----------
 function renderBusinessCalendar(container, startDate, endDate, businessDates, customHolidayText = '') {
     const today = formatDate(new Date());
@@ -245,12 +249,14 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates, cu
             let cls = 'biz-cal-day';
 
             if (businessSet.has(dateStr)) cls += ' business';
+            // 공휴일(커스텀 포함)은 연한 빨간 배경. 공휴일 제외를 꺼서 근무일이면 근무일 배경 유지
+            else if (holidayName) cls += ' holiday';
             // 일요일·공휴일은 빨간색, 토요일은 파란색
             if (holidayName || weekday === 0) cls += ' sunday';
             else if (weekday === 6) cls += ' saturday';
             if (dateStr === today) cls += ' today';
 
-            const title = holidayName ? ` title="${holidayName.replace(/[&"<>]/g, (ch) => `&#${ch.charCodeAt(0)};`)}"` : '';
+            const title = holidayName ? ` title="${escapeAttr(holidayName)}"` : '';
             html += `<div class="${cls}"${title}>${d}</div>`;
         }
 
@@ -288,8 +294,10 @@ function renderMiniCalendar(container, year, month, selectedSet) {
         let cls = 'cal-day';
         if (holidayNames[dateStr] || weekday === 0) cls += ' sunday';
         else if (weekday === 6) cls += ' saturday';
+        if (holidayNames[dateStr]) cls += ' holiday';
         if (selectedSet.has(dateStr)) cls += ' selected';
-        html += `<div class="${cls}" data-date="${dateStr}">${d}</div>`;
+        const title = holidayNames[dateStr] ? ` title="${escapeAttr(holidayNames[dateStr])}"` : '';
+        html += `<div class="${cls}" data-date="${dateStr}"${title}>${d}</div>`;
     }
 
     html += '</div>';
