@@ -11,6 +11,7 @@ const {
     missingHolidayYears,
     parseCustomHolidayEntries,
     resolveWorkdays,
+    describeOffset,
     holidayNames,
 } = require('../script.js');
 
@@ -160,6 +161,19 @@ test('근무 요일 지정: 주 1일 근무도 먼 날짜까지 계산된다', (
 test('예전 includeSaturday 옵션도 계속 동작한다', () => {
     assert.deepEqual([...resolveWorkdays({ includeSaturday: true })].sort(), [1, 2, 3, 4, 5, 6]);
     assert.deepEqual([...resolveWorkdays({})].sort(), [1, 2, 3, 4, 5]);
+});
+
+test('N 근무일 이동 설명 문구', () => {
+    assert.equal(
+        describeOffset(parseDate('2026-09-23'), parseDate('2026-09-28'), 1),
+        '2026-09-23 (수) 기준 1 근무일 후 · 달력으로 5일 후',
+    );
+    assert.equal(
+        describeOffset(parseDate('2026-10-12'), parseDate('2026-10-06'), -3),
+        '2026-10-12 (월) 기준 3 근무일 전 · 달력으로 6일 전',
+    );
+    // 서머타임이 있는 시간대에서도 달력 일수가 정확해야 함 (뉴욕 3/8 서머타임 시작)
+    assert.match(describeOffset(parseDate('2026-03-06'), parseDate('2026-03-09'), 1), /달력으로 3일 후$/);
 });
 
 test('공휴일 데이터가 없는 연도를 알려준다', () => {

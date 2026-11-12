@@ -462,6 +462,26 @@ function setDefaultDates() {
     document.getElementById('baseDate').value = iso;
 }
 
+function formatDateWithWeekday(date) {
+    return `${formatDate(date)} (${weekdayLabels[date.getDay()]})`;
+}
+
+// 예: "2026-09-23 (수) 기준 1 근무일 후 · 달력으로 5일 후"
+function describeOffset(baseDate, targetDate, offset) {
+    const base = `${formatDateWithWeekday(baseDate)} 기준`;
+    if (offset === 0) return `${base} 0 근무일 (기준일 그대로)`;
+    const calendarDays = Math.round((targetDate - baseDate) / 86400000);
+    const dir = offset > 0 ? '후' : '전';
+    return `${base} ${Math.abs(offset)} 근무일 ${dir} · 달력으로 ${Math.abs(calendarDays)}일 ${dir}`;
+}
+
+function hideRangeResults() {
+    ['rangeSummary', 'businessCalendar', 'holidayDetails'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.hidden = true;
+    });
+}
+
 function handleRangeCalculation() {
     const startValue = document.getElementById('startDate').value;
     const endValue = document.getElementById('endDate').value;
@@ -476,10 +496,12 @@ function handleRangeCalculation() {
     const endDate = parseDate(endValue);
     if (!startDate || !endDate) {
         errorBox.textContent = '시작일과 종료일을 모두 입력해주세요.';
+        hideRangeResults();
         return;
     }
     if (!workdays.length) {
         errorBox.textContent = '근무 요일을 하루 이상 선택해주세요.';
+        hideRangeResults();
         return;
     }
 
@@ -586,17 +608,23 @@ function handleOffsetCalculation() {
     const customHolidayText = document.getElementById('customHolidaysOffset').value;
     const errorBox = document.getElementById('offsetError');
 
+    const summary = document.getElementById('offsetSummary');
+    const fail = (message) => {
+        errorBox.textContent = message;
+        summary.hidden = true; // 이전 결과가 남아 보이지 않도록
+    };
+
     const baseDate = parseDate(baseValue);
     if (!baseDate || offsetRaw === '' || !Number.isInteger(offsetValue)) {
-        errorBox.textContent = '기준일과 이동할 근무일 수(정수)를 올바르게 입력해주세요.';
+        fail('기준일과 이동할 근무일 수(정수)를 올바르게 입력해주세요.');
         return;
     }
     if (Math.abs(offsetValue) > MAX_OFFSET) {
-        errorBox.textContent = `이동할 근무일 수는 ±${MAX_OFFSET}일 이내로 입력해주세요.`;
+        fail(`이동할 근무일 수는 ±${MAX_OFFSET}일 이내로 입력해주세요.`);
         return;
     }
     if (!workdays.length) {
-        errorBox.textContent = '근무 요일을 하루 이상 선택해주세요.';
+        fail('근무 요일을 하루 이상 선택해주세요.');
         return;
     }
 
@@ -609,14 +637,26 @@ function handleOffsetCalculation() {
         customHolidayText,
     });
 
-    errorBox.textContent = excludeHolidays
-        ? missingYearsWarning(missingHolidayYears(baseDate, result.targetDate))
-        : '';
+    const messages = [];
+    if (excludeHolidays) {
+        const warning = missingYearsWarning(missingHolidayYears(baseDate, result.targetDate));
+        if (warning) messages.push(warning);
+    }
+    if (offsetValue === 0) {
+        const baseIsWorkday = calculateRange({
+            startDate: baseDate,
+            endDate: baseDate,
+            workdays,
+            excludeHolidays,
+            customHolidayText,
+        }).businessDays === 1;
+        if (!baseIsWorkday) messages.push('참고: 기준일은 근무일이 아닙니다.');
+    }
+    errorBox.textContent = messages.join(' ');
 
-    document.getElementById('offsetSummary').hidden = false;
-    document.getElementById('offsetResult').textContent = formatDate(result.targetDate);
-    const direction = offsetValue >= 0 ? '이동' : '역방향 이동';
-    document.getElementById('offsetTrace').textContent = `${formatDate(baseDate)} 기준 ${offsetValue} 근무일 ${direction}`;
+    summary.hidden = false;
+    document.getElementById('offsetResult').textContent = formatDateWithWeekday(result.targetDate);
+    document.getElementById('offsetTrace').textContent = describeOffset(baseDate, result.targetDate, offsetValue);
 }
 
 function bindEvents() {
@@ -675,6 +715,7 @@ if (typeof module !== 'undefined' && module.exports) {
         missingHolidayYears,
         parseCustomHolidayEntries,
         resolveWorkdays,
+        describeOffset,
         holidayNames,
     };
 }
