@@ -182,9 +182,10 @@ function renderWeekdayStats(container, counts) {
 }
 
 // ---------- business days calendar (carousel view) ----------
-function renderBusinessCalendar(container, startDate, endDate, businessDates) {
+function renderBusinessCalendar(container, startDate, endDate, businessDates, customHolidayText = '') {
     const today = formatDate(new Date());
     const businessSet = new Set(businessDates);
+    const customSet = new Set(parseCustomHolidays(customHolidayText));
 
     // collect all dates from start to end month-by-month
     const calendars = [];
@@ -203,8 +204,9 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates) {
         html += '<div class="biz-cal-grid">';
 
         // weekday labels
-        ['일', '월', '화', '수', '목', '금', '토'].forEach((d) => {
-            html += `<div class="biz-cal-day disabled"><small>${d}</small></div>`;
+        weekdayLabels.forEach((d, idx) => {
+            const dayCls = idx === 0 ? ' sunday' : idx === 6 ? ' saturday' : '';
+            html += `<div class="biz-cal-day disabled${dayCls}"><small>${d}</small></div>`;
         });
 
         // blank cells
@@ -213,12 +215,18 @@ function renderBusinessCalendar(container, startDate, endDate, businessDates) {
         // day cells
         for (let d = 1; d <= daysInMonth; d++) {
             const dateStr = `${year}-${pad(month + 1)}-${pad(d)}`;
+            const weekday = (firstWeekday + d - 1) % 7;
+            const holidayName = holidayNames[dateStr] || (customSet.has(dateStr) ? '사용자 지정 휴일' : '');
             let cls = 'biz-cal-day';
 
             if (businessSet.has(dateStr)) cls += ' business';
+            // 일요일·공휴일은 빨간색, 토요일은 파란색
+            if (holidayName || weekday === 0) cls += ' sunday';
+            else if (weekday === 6) cls += ' saturday';
             if (dateStr === today) cls += ' today';
 
-            html += `<div class="${cls}">${d}</div>`;
+            const title = holidayName ? ` title="${holidayName.replace(/[&"<>]/g, (ch) => `&#${ch.charCodeAt(0)};`)}"` : '';
+            html += `<div class="${cls}"${title}>${d}</div>`;
         }
 
         html += '</div></div>';
@@ -410,6 +418,7 @@ function handleRangeCalculation() {
             from,
             to,
             stats.businessDates,
+            customHolidayText,
         );
     }
 

@@ -499,6 +499,15 @@ textarea:focus {
     border-color: var(--accent);
 }
 
+/* 토요일 파란색, 일요일·공휴일 빨간색 (근무일 배경 위에서도 글자색 유지) */
+.biz-cal-day.saturday {
+    color: #2563eb;
+}
+
+.biz-cal-day.sunday {
+    color: #dc2626;
+}
+
 .biz-cal-day.today {
     background: var(--primary);
     color: white;
