@@ -1,5 +1,11 @@
 {
-  "dependencies": {
+  "name": "k-wcalc",
+  "private": true,
+  "scripts": {
+    "test": "TZ=Asia/Seoul node --test \"tests/*.test.js\" && TZ=America/New_York node --test \"tests/*.test.js\"",
+    "update-holidays": "node scripts/fetch-holidays.mjs"
+  },
+  "devDependencies": {
     "jsdom": "^27.2.0"
   }
 }

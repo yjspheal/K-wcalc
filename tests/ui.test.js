@@ -3,20 +3,25 @@ const path = require('path');
 const { JSDOM } = require('jsdom');
 
 function isoToday() {
-    return new Date().toISOString().slice(0, 10);
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 (async () => {
-    const root = process.cwd();
+    const root = path.join(__dirname, '..');
     const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+    const holidaysContent = fs.readFileSync(path.join(root, 'holidays.js'), 'utf8');
     const scriptContent = fs.readFileSync(path.join(root, 'script.js'), 'utf8');
 
-    const dom = new JSDOM(html, { runScripts: 'dangerously', resources: 'usable', url: 'file://' + root + '/' });
+    // 외부 리소스(광고/폰트)는 불러오지 않고 스크립트만 직접 실행합니다.
+    const dom = new JSDOM(html, { runScripts: 'outside-only', url: 'file://' + root + '/' });
     const { window } = dom;
     // provide console to window
     window.console = console;
 
-    // evaluate the script in the window
+    // evaluate the scripts in the window (holidays.js 먼저)
+    window.eval(holidaysContent);
     window.eval(scriptContent);
 
     // ensure initApp exists and call it
@@ -134,7 +139,5 @@ function isoToday() {
     console.log('- Initialization: No auto-calculation ✓');
     console.log('- Default dates: start=today, end=empty, base=today ✓');
     console.log('- Manual calculation: Results appear only after button click ✓');
-    console.log('- Calendar navigation: Removed (no arrows) ✓');
-    console.log('- 2026 holidays: Added to defaultHolidays object ✓');
     process.exit(0);
 })();
