@@ -1,6 +1,6 @@
 # K-wcalc: 근무일 계산기
 
-[**https://yjspheal.github.io/K-wcalc/**](https://yjspheal.github.io/K-wcalc/)
+[**https://workday.randpixo.com**](https://workday.randpixo.com)
 
 간단한 웹 기반 근무일 계산기입니다.
 
